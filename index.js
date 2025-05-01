@@ -1,61 +1,50 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-const VERIFY_TOKEN = 'twixor123'; // Your verify token
-
+// To parse JSON bodies
 app.use(bodyParser.json());
 
-// ✅ Webhook verification (for Facebook Developer setup)
-app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+// Replace this with your token
+const VERIFY_TOKEN = "twixor123";
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ Webhook verified');
+// Facebook webhook verification
+app.get('/webhook', (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode && token && mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verified with Meta!");
     res.status(200).send(challenge);
   } else {
-    console.log('❌ Verification failed');
+    console.log("❌ Webhook verification failed.");
     res.sendStatus(403);
   }
 });
 
-// 📥 Webhook POST: receive flow completion data
+// Handle incoming webhook POST (message or flow submission)
 app.post('/webhook', (req, res) => {
-  try {
-    console.log('📥 Incoming payload:', JSON.stringify(req.body, null, 2));
+  console.log("📨 Received webhook data:");
+  console.log(JSON.stringify(req.body, null, 2)); // Log to Render logs
 
-    const messages = req.body?.entry?.[0]?.changes?.[0]?.value?.messages;
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(200).json({ message: 'No messages found' });
-    }
+  const entry = req.body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const messages = changes?.value?.messages;
 
-    const flowResponses = messages[0]?.flow_completion?.responses;
-    if (!flowResponses) {
-      return res.status(200).json({ message: 'No flow responses found' });
-    }
+  if (messages && messages[0]?.interactive?.type === "flow_submission") {
+    const flowSubmission = messages[0].interactive.flow_submission;
+    const responses = flowSubmission.responses;
 
-    const from = messages[0]?.from;
-    const formatted = {
-      mobile: from,
-      responses: flowResponses.map(item => ({
-        name: item.name,
-        answer: item.answer
-      }))
-    };
-
-    console.log('✅ Parsed responses:', JSON.stringify(formatted, null, 2));
-
-    // Return JSON back to client
-    res.status(200).json(formatted);
-  } catch (err) {
-    console.error('❌ Error:', err.message);
-    res.sendStatus(500);
+    console.log("✅ FLOW SUBMISSION RECEIVED:");
+    console.log(JSON.stringify(responses, null, 2));
   }
+
+  res.sendStatus(200);
 });
 
-app.listen(port, () => {
-  console.log(`🟢 Webhook server listening on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Webhook server running on port ${PORT}`);
 });
