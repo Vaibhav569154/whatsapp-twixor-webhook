@@ -6,7 +6,7 @@ const app = express();
 app.use(bodyParser.json());
 
 const VERIFY_TOKEN = 'twixor123'; // You can set any token you want here
-const TWIXOR_WEBHOOK_URL = 'https://your-twixor-or-forwarding-url.com'; // replace if needed
+const TWIXOR_WEBHOOK_URL = 'https://whatsapp-twixor-webhook.onrender.com'; // replace if needed
 
 // 🟢 Meta Webhook Verification Handler
 app.get('/webhook', (req, res) => {
