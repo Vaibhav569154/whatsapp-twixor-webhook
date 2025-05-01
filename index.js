@@ -5,12 +5,25 @@ const axios = require('axios');
 const app = express();
 app.use(bodyParser.json());
 
-const TWIXOR_WEBHOOK_URL = 'https://mycustombot.com/api/receive-whatsapp-data';
+const VERIFY_TOKEN = 'twixor123'; // You can set any token you want here
+const TWIXOR_WEBHOOK_URL = 'https://your-twixor-or-forwarding-url.com'; // replace if needed
 
-app.get('/', (req, res) => {
-  res.send('Webhook is live');
+// 🟢 Meta Webhook Verification Handler
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('✅ Webhook verified');
+    res.status(200).send(challenge);
+  } else {
+    console.log('❌ Verification failed');
+    res.sendStatus(403);
+  }
 });
 
+// 🔁 Main WhatsApp Flow Handling
 app.post('/webhook', async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
@@ -35,16 +48,16 @@ app.post('/webhook', async (req, res) => {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      console.log('Forwarded to Twixor:', payload);
+      console.log('✅ Forwarded to Twixor:', payload);
       res.sendStatus(200);
     } else {
-      res.sendStatus(200);
+      res.sendStatus(200); // Not a flow message
     }
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('❌ Error:', err.message);
     res.sendStatus(500);
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
