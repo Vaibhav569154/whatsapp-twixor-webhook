@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 
+// Webhook verification endpoint for Facebook
 app.get("/webhook", (req, res) => {
   const VERIFY_TOKEN = "twixor123";
   const mode = req.query["hub.mode"];
@@ -20,6 +21,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
+// Webhook to handle incoming data from WhatsApp Flow
 app.post("/webhook", (req, res) => {
   console.log("📨 FULL INCOMING BODY:");
   console.log(JSON.stringify(req.body, null, 2));
@@ -28,19 +30,41 @@ app.post("/webhook", (req, res) => {
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
     const messages = change?.value?.messages;
+    const contact = change?.value?.contacts?.[0];
 
     if (messages && messages[0]?.interactive?.type === "nfm_reply") {
+      const fromNumber = messages[0].from || contact?.wa_id || "Unknown";
       const rawJson = messages[0].interactive.nfm_reply.response_json;
       const parsed = JSON.parse(rawJson);
 
-      console.log("✅ PARSED FLOW RESPONSE:");
-      console.log(JSON.stringify(parsed, null, 2));
+      // Capture the responses from each screen (question)
+      const screen1Response = parsed["screen_1_Choose_one_0"] || "No selection";
+      const screen2Response = parsed["screen_2_Choose_all_that_apply_0"] || "No selection";
+      const screen3Response = parsed["screen_3_Choose_one_0"] || "No selection";
+
+      console.log("✅ Parsed WhatsApp Flow Response from:", fromNumber);
+      console.log(`Screen 1 Response: ${screen1Response}`);
+      console.log(`Screen 2 Response: ${screen2Response}`);
+      console.log(`Screen 3 Response: ${screen3Response}`);
+
+      // Send back the structured response with selected options
+      return res.status(200).json({
+        status: "success",
+        from: fromNumber,
+        responses: {
+          screen_1: screen1Response,
+          screen_2: screen2Response,
+          screen_3: screen3Response
+        }
+      });
+    } else {
+      console.log("ℹ️ Not an nfm_reply message.");
+      return res.status(200).json({ status: "ignored", reason: "not an nfm_reply" });
     }
   } catch (error) {
     console.error("❌ Error processing webhook:", error);
+    return res.status(500).json({ status: "error", error: error.message });
   }
-
-  res.sendStatus(200);
 });
 
 app.listen(PORT, () => {
