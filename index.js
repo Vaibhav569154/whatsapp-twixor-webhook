@@ -32,12 +32,13 @@ app.post("/webhook", (req, res) => {
     const messages = change?.value?.messages;
     const contact = change?.value?.contacts?.[0];
 
+    // Ensure that it's an interactive message and a response from the flow (nfm_reply)
     if (messages && messages[0]?.interactive?.type === "nfm_reply") {
       const fromNumber = messages[0].from || contact?.wa_id || "Unknown";
       const rawJson = messages[0].interactive.nfm_reply.response_json;
       const parsed = JSON.parse(rawJson);
 
-      // Capture the responses from each screen (question)
+      // Capture responses from each screen (question) and ensure that the data exists
       const screen1Response = parsed["screen_1_Choose_one_0"] || "No selection";
       const screen2Response = parsed["screen_2_Choose_all_that_apply_0"] || "No selection";
       const screen3Response = parsed["screen_3_Choose_one_0"] || "No selection";
@@ -47,7 +48,7 @@ app.post("/webhook", (req, res) => {
       console.log(`Screen 2 Response: ${screen2Response}`);
       console.log(`Screen 3 Response: ${screen3Response}`);
 
-      // Send back the structured response with selected options
+      // Return the parsed responses in a structured JSON format
       return res.status(200).json({
         status: "success",
         from: fromNumber,
@@ -58,6 +59,7 @@ app.post("/webhook", (req, res) => {
         }
       });
     } else {
+      // In case the message is not an nfm_reply type
       console.log("ℹ️ Not an nfm_reply message.");
       return res.status(200).json({ status: "ignored", reason: "not an nfm_reply" });
     }
@@ -67,6 +69,7 @@ app.post("/webhook", (req, res) => {
   }
 });
 
+// Start the server
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
 });
