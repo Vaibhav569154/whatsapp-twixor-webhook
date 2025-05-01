@@ -1,72 +1,61 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const axios = require('axios');
 const app = express();
 const port = process.env.PORT || 3000;
 
-const VERIFY_TOKEN = 'twixor123'; // Your chosen verify token
-const TWIXOR_WEBHOOK_URL = 'http://10.250.55.21/chatbird/message/65dd9d293c3214123502a69f/send'; // Twixor endpoint to forward responses
+const VERIFY_TOKEN = 'twixor123'; // Your verify token
 
 app.use(bodyParser.json());
 
-// ✅ Webhook verification route
+// ✅ Webhook verification (for Facebook Developer setup)
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ Webhook verified successfully');
+    console.log('✅ Webhook verified');
     res.status(200).send(challenge);
   } else {
-    console.log('❌ Webhook verification failed');
+    console.log('❌ Verification failed');
     res.sendStatus(403);
   }
 });
 
-// 📥 Route to receive WhatsApp flow completion data
-app.post('/webhook', async (req, res) => {
+// 📥 Webhook POST: receive flow completion data
+app.post('/webhook', (req, res) => {
   try {
-    console.log('📥 Incoming request body:', JSON.stringify(req.body, null, 2));
+    console.log('📥 Incoming payload:', JSON.stringify(req.body, null, 2));
 
     const messages = req.body?.entry?.[0]?.changes?.[0]?.value?.messages;
     if (!messages || !Array.isArray(messages)) {
-      console.log('⚠️ No messages found');
-      return res.status(200).send('No messages in payload');
+      return res.status(200).json({ message: 'No messages found' });
     }
 
-    const message = messages[0];
-    const from = message?.from;
-    const flowResponses = message?.flow_completion?.responses;
-
+    const flowResponses = messages[0]?.flow_completion?.responses;
     if (!flowResponses) {
-      console.log('⚠️ No flow_completion data found');
-      return res.status(200).send('No flow responses');
+      return res.status(200).json({ message: 'No flow responses found' });
     }
 
-    // Format payload to send to Twixor
-    const dataToSend = {
+    const from = messages[0]?.from;
+    const formatted = {
       mobile: from,
-      variables: {}
+      responses: flowResponses.map(item => ({
+        name: item.name,
+        answer: item.answer
+      }))
     };
 
-    flowResponses.forEach((item, index) => {
-      dataToSend.variables[`q${index + 1}`] = item.answer;
-    });
+    console.log('✅ Parsed responses:', JSON.stringify(formatted, null, 2));
 
-    console.log('➡️ Forwarding to Twixor:', JSON.stringify(dataToSend));
-
-    // Send to Twixor endpoint
-    await axios.post(TWIXOR_WEBHOOK_URL, dataToSend);
-
-    res.sendStatus(200);
+    // Return JSON back to client
+    res.status(200).json(formatted);
   } catch (err) {
-    console.error('❌ Error handling webhook:', err.message);
+    console.error('❌ Error:', err.message);
     res.sendStatus(500);
   }
 });
 
-// 🚀 Start server
 app.listen(port, () => {
-  console.log(`🟢 Server running at https://whatsapp-twixor-webhook.onrender.com on port ${port}`);
+  console.log(`🟢 Webhook server listening on port ${port}`);
 });
