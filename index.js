@@ -1,50 +1,48 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require("express");
+const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// To parse JSON bodies
 app.use(bodyParser.json());
 
-// Replace this with your token
-const VERIFY_TOKEN = "twixor123";
-
-// Facebook webhook verification
-app.get('/webhook', (req, res) => {
+app.get("/webhook", (req, res) => {
+  const VERIFY_TOKEN = "twixor123";
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token && mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verified with Meta!");
-    res.status(200).send(challenge);
+  if (mode && token === VERIFY_TOKEN) {
+    console.log("Webhook verified");
+    return res.status(200).send(challenge);
   } else {
-    console.log("❌ Webhook verification failed.");
-    res.sendStatus(403);
+    return res.sendStatus(403);
   }
 });
 
-// Handle incoming webhook POST (message or flow submission)
-app.post('/webhook', (req, res) => {
-  console.log("📨 Received webhook data:");
-  console.log(JSON.stringify(req.body, null, 2)); // Log to Render logs
+app.post("/webhook", (req, res) => {
+  console.log("📨 FULL INCOMING BODY:");
+  console.log(JSON.stringify(req.body, null, 2));
 
-  const entry = req.body.entry?.[0];
-  const changes = entry?.changes?.[0];
-  const messages = changes?.value?.messages;
+  try {
+    const entry = req.body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const messages = change?.value?.messages;
 
-  if (messages && messages[0]?.interactive?.type === "flow_submission") {
-    const flowSubmission = messages[0].interactive.flow_submission;
-    const responses = flowSubmission.responses;
+    if (messages && messages[0]?.interactive?.type === "nfm_reply") {
+      const rawJson = messages[0].interactive.nfm_reply.response_json;
+      const parsed = JSON.parse(rawJson);
 
-    console.log("✅ FLOW SUBMISSION RECEIVED:");
-    console.log(JSON.stringify(responses, null, 2));
+      console.log("✅ PARSED FLOW RESPONSE:");
+      console.log(JSON.stringify(parsed, null, 2));
+    }
+  } catch (error) {
+    console.error("❌ Error processing webhook:", error);
   }
 
   res.sendStatus(200);
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Webhook server running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
